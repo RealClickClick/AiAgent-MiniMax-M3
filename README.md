@@ -4,6 +4,16 @@ Bilingual Setup and Features Guide / راهنمای دوزبانه راه‌ان
 
 ---
 
+## Preview / نمای محیط نرم‌افزار
+
+### Light Mode / حالت روز
+![MiniMax AI Chatbot light mode](docs/screenshots/light-mode.png)
+
+### Dark Mode / حالت شب
+![MiniMax AI Chatbot dark mode](docs/screenshots/dark-mode.png)
+
+---
+
 ## 🇮🇷 راهنمای فارسی (Persian Guide)
 
 یک چت‌بات هوش مصنوعی پیشرفته و مدرن با رابط کاربری شیک (Glassmorphism)، انیمیشن‌های پویا، مدیریت گفتگوها و شخصی‌سازی پیشرفته پاسخ‌ها.
@@ -23,8 +33,6 @@ Bilingual Setup and Features Guide / راهنمای دوزبانه راه‌ان
 - **کنترل زبان و لحن:** انتخاب زبان پاسخگویی فارسی، انگلیسی یا خودکار و انتخاب لحن پاسخ از نوار بالای چت.
 - **ناوبری پیام‌ها:** دکمه شناور برای برگشت به پرامپت‌های قبلی و دکمه رفتن به پایین چت هنگام اسکرول در گفتگوهای طولانی.
 - **ورودی پیام:** کادر نوشتن پیام با تغییر ارتفاع خودکار، دکمه ارسال/توقف تولید پاسخ و پشتیبانی از تاریخچه پرامپت‌ها.
-
-برای اضافه کردن تصویر محیط برنامه در GitHub، می‌توانید اسکرین‌شات‌ها را در مسیر `docs/screenshots/` قرار دهید و سپس لینک آن‌ها را در همین بخش اضافه کنید.
 
 ### 🔑 تنظیمات کلید API (TokenRouter)
 برای استفاده از این پروژه نیاز به کلید API دارید. سرویس‌دهنده مرجع برای دریافت کلید:
@@ -77,8 +85,6 @@ The app is designed as a modern browser-based chat dashboard:
 - **Language and tone controls:** The top toolbar lets users choose Persian, English, or automatic language mode, plus a custom response tone.
 - **Message navigation:** Floating controls help users jump back to previous prompts or return to the bottom of long conversations.
 - **Message composer:** Includes auto-resizing input, send/stop behavior, and prompt history support.
-
-To show screenshots on GitHub, place images in `docs/screenshots/` and link them from this section.
 
 ### 🔑 API Key Configuration (TokenRouter)
 An API key is required to use this chatbot. Get your API key from the reference provider:
