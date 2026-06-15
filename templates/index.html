@@ -23,6 +23,20 @@
             --border-color: rgba(255, 255, 255, 0.08);
         }
 
+        body.light-theme {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --bg-color: #eef2ff;
+            --sidebar-bg: rgba(255, 255, 255, 0.72);
+            --chat-bg: rgba(255, 255, 255, 0.78);
+            --user-msg: rgba(79, 70, 229, 0.92);
+            --ai-msg: rgba(248, 250, 252, 0.9);
+            --think-bg: rgba(226, 232, 240, 0.65);
+            --text-light: #0f172a;
+            --text-muted: #64748b;
+            --border-color: rgba(15, 23, 42, 0.1);
+        }
+
         body {
             margin: 0;
             padding: 0;
@@ -57,6 +71,14 @@
             bottom: -150px;
             left: -150px;
             animation: drift 25s ease-in-out infinite alternate-reverse;
+        }
+        body.light-theme .bg-glow-1 {
+            background: #60a5fa;
+            opacity: 0.18;
+        }
+        body.light-theme .bg-glow-2 {
+            background: #c084fc;
+            opacity: 0.14;
         }
         @keyframes drift {
             0% { transform: translate(0, 0) scale(1); }
@@ -153,7 +175,7 @@
             border: 1px solid var(--border-color);
             border-radius: 10px;
             padding: 10px 12px;
-            color: white;
+            color: var(--text-light);
             font-family: inherit;
             font-size: 0.85rem;
             box-sizing: border-box;
@@ -163,6 +185,12 @@
             outline: none;
             border-color: var(--primary);
             background: rgba(255, 255, 255, 0.08);
+        }
+        body.light-theme .sidebar-search input {
+            background: rgba(255, 255, 255, 0.7);
+        }
+        body.light-theme .sidebar-search input:focus {
+            background: #ffffff;
         }
 
         .chat-list {
@@ -196,6 +224,12 @@
         .chat-item:hover {
             background: rgba(255,255,255,0.06);
         }
+        body.light-theme .chat-item {
+            background: rgba(255,255,255,0.48);
+        }
+        body.light-theme .chat-item:hover {
+            background: rgba(79, 70, 229, 0.07);
+        }
 
         .chat-item.active {
             background: rgba(99, 102, 241, 0.15);
@@ -206,7 +240,7 @@
             overflow: hidden;
             text-overflow: ellipsis;
             flex-grow: 1;
-            color: #e2e8f0;
+            color: var(--text-light);
         }
 
         .delete-chat-btn {
@@ -308,6 +342,9 @@
         .sidebar-toggle-btn:hover {
             background: rgba(255, 255, 255, 0.05);
         }
+        body.light-theme .sidebar-toggle-btn:hover {
+            background: rgba(15, 23, 42, 0.06);
+        }
 
         .avatar {
             width: 44px;
@@ -365,10 +402,26 @@
             background: rgba(255, 255, 255, 0.08);
             border-color: rgba(255,255,255,0.15);
         }
+        body.light-theme .lang-select,
+        body.light-theme .tone-select,
+        body.light-theme .header-btn {
+            background: rgba(255, 255, 255, 0.62);
+        }
+        body.light-theme .lang-select:hover,
+        body.light-theme .tone-select:hover,
+        body.light-theme .header-btn:hover {
+            background: rgba(79, 70, 229, 0.08);
+            border-color: rgba(79, 70, 229, 0.18);
+        }
         
         .lang-select option, .tone-select option {
             background: #111827;
             color: var(--text-light);
+        }
+        body.light-theme .lang-select option,
+        body.light-theme .tone-select option {
+            background: #ffffff;
+            color: #0f172a;
         }
 
         .header-btn {
@@ -461,6 +514,10 @@
             border-bottom-left-radius: 4px;
             border: 1px solid rgba(255, 255, 255, 0.06);
             color: var(--text-light);
+        }
+        body.light-theme .message.assistant {
+            border-color: rgba(15, 23, 42, 0.08);
+            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
         }
 
         .message.rtl {
@@ -885,6 +942,9 @@
             display: flex;
             gap: 12px;
         }
+        body.light-theme .input-area {
+            background: rgba(248, 250, 252, 0.72);
+        }
 
         .input-box {
             flex-grow: 1;
@@ -897,7 +957,7 @@
             border: 1px solid var(--border-color);
             border-radius: 12px;
             padding: 14px 16px;
-            color: white;
+            color: var(--text-light);
             font-family: inherit;
             font-size: 1rem;
             resize: none;
@@ -928,6 +988,15 @@
         }
 
         textarea::placeholder { color: rgba(255, 255, 255, 0.25); }
+        body.light-theme textarea {
+            background: rgba(255, 255, 255, 0.86);
+        }
+        body.light-theme textarea:focus {
+            background: #ffffff;
+        }
+        body.light-theme textarea::placeholder {
+            color: rgba(15, 23, 42, 0.38);
+        }
 
         .send-btn {
             background: var(--primary);
@@ -956,6 +1025,10 @@
             cursor: not-allowed;
             transform: none;
             box-shadow: none;
+        }
+        body.light-theme .send-btn:disabled {
+            background: rgba(15, 23, 42, 0.08);
+            color: rgba(15, 23, 42, 0.28);
         }
 
         .send-btn.generating {
@@ -1253,6 +1326,10 @@
                                 <option value="romantic">عاشقانه (Romantic)</option>
                             </select>
                         </div>
+                        <button class="header-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle light/dark mode" aria-label="Toggle light/dark mode">
+                            <svg id="themeIconMoon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12.74 2.03c-1.46 1.14-2.4 2.91-2.4 4.9 0 3.43 2.78 6.21 6.21 6.21 1.99 0 3.76-.94 4.9-2.4.04.41.06.83.06 1.26 0 5.25-4.26 9.51-9.51 9.51S2.49 17.25 2.49 12 6.75 2.49 12 2.49c.43 0 .85.02 1.26.06l-.52-.52z"/></svg>
+                            <svg id="themeIconSun" viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="display:none;"><path d="M6.76 4.84l-1.8-1.79-1.41 1.41 1.79 1.8 1.42-1.42zM1 13h3v-2H1v2zm10-12v3h2V1h-2zm9.45 3.46l-1.41-1.41-1.8 1.79 1.42 1.42 1.79-1.8zM17.24 19.16l1.8 1.79 1.41-1.41-1.79-1.8-1.42 1.42zM20 11v2h3v-2h-3zm-8 8c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6zm-1 4h2v-3h-2v3zm-6.04-2.05l1.8-1.79-1.42-1.42-1.79 1.8 1.41 1.41z"/></svg>
+                        </button>
                         <button class="header-btn" id="exportBtn" onclick="exportChat()" title="خروجی گرفتن از گفتگو">
                             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
                         </button>
@@ -1524,6 +1601,32 @@
         let sessions = JSON.parse(localStorage.getItem('minimax_chats')) || [];
         let currentSessionId = null;
         let activeAbortController = null;
+        let currentTheme = localStorage.getItem('minimax_theme') || 'dark';
+
+        function applyTheme(theme) {
+            currentTheme = theme === 'light' ? 'light' : 'dark';
+            document.body.classList.toggle('light-theme', currentTheme === 'light');
+            localStorage.setItem('minimax_theme', currentTheme);
+
+            const moonIcon = document.getElementById('themeIconMoon');
+            const sunIcon = document.getElementById('themeIconSun');
+            const themeBtn = document.getElementById('themeToggleBtn');
+
+            if (moonIcon && sunIcon) {
+                moonIcon.style.display = currentTheme === 'light' ? 'block' : 'none';
+                sunIcon.style.display = currentTheme === 'light' ? 'none' : 'block';
+            }
+
+            if (themeBtn) {
+                const title = currentTheme === 'light' ? 'حالت شب' : 'حالت روز';
+                themeBtn.title = title;
+                themeBtn.setAttribute('aria-label', title);
+            }
+        }
+
+        function toggleTheme() {
+            applyTheme(currentTheme === 'light' ? 'dark' : 'light');
+        }
 
         function saveSessions() {
             localStorage.setItem('minimax_chats', JSON.stringify(sessions));
@@ -2751,6 +2854,8 @@
         }
 
         // Initialize
+        applyTheme(currentTheme);
+
         if (sessions.length === 0) {
             createNewSession();
         } else {

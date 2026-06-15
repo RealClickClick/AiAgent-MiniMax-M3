@@ -20,7 +20,13 @@ def chat():
     
     # Ensure system prompt is present
     if not messages or messages[0].get('role') != 'system':
-        messages.insert(0, {"role": "system", "content": "شما یک دستیار هوشمند و مودب هستید. لطفاً پاسخ‌های خود را به زبان فارسی و خلاصه بیان کنید."})
+        messages.insert(0, {
+            "role": "system",
+            "content": (
+                "You are a polite and intelligent assistant. Reply in the same "
+                "language the user uses, unless they request another language."
+            )
+        })
         
     def generate():
         try:
