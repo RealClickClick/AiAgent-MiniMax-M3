@@ -840,6 +840,43 @@
             line-height: 1.5;
         }
 
+        /* Floating Prompt Nav */
+        .prompt-nav-floating {
+            position: absolute;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(99, 102, 241, 0.9);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 24px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 100;
+            display: none;
+            align-items: center;
+            gap: 8px;
+            max-width: 80%;
+            white-space: nowrap;
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: all 0.2s;
+        }
+        .prompt-nav-floating:hover {
+            background: rgba(79, 70, 229, 1);
+            transform: translateX(-50%) translateY(-2px);
+        }
+        .prompt-nav-text {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            direction: rtl;
+        }
+        body.ltr-layout .prompt-nav-text {
+            direction: ltr;
+        }
+
         /* Input Area */
         .input-area {
             padding: 20px;
@@ -1225,6 +1262,11 @@
                     </div>
                 </div>
 
+                <div id="promptNavFloating" class="prompt-nav-floating" onclick="goToPreviousPrompt()">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="flex-shrink:0;"><path d="M12 8l-6 6 1.41 1.41L12 10.83l4.59 4.58L18 14z"/></svg>
+                    <span class="prompt-nav-text" id="promptNavText"></span>
+                </div>
+
                 <div class="messages" id="messagesBox">
                     <div class="typing-indicator" id="typingIndicator">
                         <div class="dot"></div>
@@ -1235,7 +1277,7 @@
 
                 <div class="input-area">
                     <div class="input-box">
-                        <textarea id="userInput" placeholder="پیام خود را اینجا بنویسید..." rows="1" oninput="autoResize(this)" onkeydown="handleEnter(event)"></textarea>
+                        <textarea id="userInput" placeholder="پیام خود را اینجا بنویسید..." rows="1" oninput="autoResize(this)" onkeydown="handleKeyDown(event)"></textarea>
                     </div>
                     <button id="sendBtn" class="send-btn" onclick="sendMessage()">
                         <svg viewBox="0 0 24 24">
@@ -1400,20 +1442,73 @@
         marked.setOptions({ renderer: renderer });
 
         function copyCode(btn) {
-            const pre = btn.closest('.code-wrapper').querySelector('pre code');
-            const text = pre.innerText;
+            const pre = btn.closest('.code-wrapper').querySelector('pre');
+            const codeEl = pre.querySelector('code');
+            const text = codeEl.innerText;
             
             const session = sessions.find(s => s.id === currentSessionId);
             const lang = session ? session.language : 'fa';
             const trans = TRANSLATIONS[lang] || TRANSLATIONS.fa;
             
+            // Create inline styled clone for rich text copying
+            const clone = pre.cloneNode(true);
+            clone.style.position = 'absolute';
+            clone.style.left = '-9999px';
+            document.body.appendChild(clone);
+            
+            function applyInline(el) {
+                const computed = window.getComputedStyle(el);
+                const styles = {
+                    color: computed.color,
+                    fontWeight: computed.fontWeight,
+                    fontStyle: computed.fontStyle,
+                    fontFamily: computed.fontFamily
+                };
+                if (computed.backgroundColor !== 'rgba(0, 0, 0, 0)' && computed.backgroundColor !== 'transparent') {
+                    styles.backgroundColor = computed.backgroundColor;
+                }
+                Array.from(el.children).forEach(child => applyInline(child));
+                Object.assign(el.style, styles);
+            }
+            
+            applyInline(clone);
+            clone.style.backgroundColor = '#121824';
+            clone.style.color = '#e2e8f0';
+            clone.style.padding = '14px';
+            clone.style.borderRadius = '8px';
+            clone.style.whiteSpace = 'pre-wrap';
+            
+            const html = clone.outerHTML;
+            clone.remove();
+            
+            try {
+                if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) {
+                    const plainBlob = new Blob([text], { type: 'text/plain' });
+                    const htmlBlob = new Blob([html], { type: 'text/html' });
+                    const item = new ClipboardItem({ 'text/plain': plainBlob, 'text/html': htmlBlob });
+                    navigator.clipboard.write([item]).then(() => {
+                        const oldText = btn.innerText;
+                        btn.innerText = (lang === 'en') ? 'Copied!' : 'کپی شد!';
+                        showToast(trans.toastCodeCopied);
+                        setTimeout(() => btn.innerText = oldText, 2000);
+                    }).catch(err => {
+                        console.error('Clipboard fallback', err);
+                        fallbackCopyCode(text, btn, trans.toastCodeCopied, lang);
+                    });
+                } else {
+                    fallbackCopyCode(text, btn, trans.toastCodeCopied, lang);
+                }
+            } catch (e) {
+                fallbackCopyCode(text, btn, trans.toastCodeCopied, lang);
+            }
+        }
+        
+        function fallbackCopyCode(text, btn, toastMsg, lang) {
             navigator.clipboard.writeText(text).then(() => {
                 const oldText = btn.innerText;
                 btn.innerText = (lang === 'en') ? 'Copied!' : 'کپی شد!';
-                showToast(trans.toastCodeCopied);
+                showToast(toastMsg);
                 setTimeout(() => btn.innerText = oldText, 2000);
-            }).catch(err => {
-                console.error('Copy failed', err);
             });
         }
 
@@ -1466,12 +1561,23 @@
             loadSession(currentSessionId);
         }
 
+        let visibleStartIndex = 1;
+        let isLazyLoading = false;
+
         function loadSession(id) {
             currentSessionId = id;
+            visibleMessageCount = 20;
             renderSidebar();
             
             // Clear current view
             messagesBox.innerHTML = '';
+            
+            const loaderDiv = document.createElement('div');
+            loaderDiv.id = 'lazyLoader';
+            loaderDiv.style = 'text-align: center; padding: 10px; color: var(--text-muted); font-size: 0.8rem; display: none; margin-bottom: 15px;';
+            loaderDiv.innerText = 'در حال بارگذاری پیام‌های قدیمی...';
+            messagesBox.appendChild(loaderDiv);
+            
             messagesBox.appendChild(typingIndicator);
             
             const session = sessions.find(s => s.id === id);
@@ -1490,20 +1596,28 @@
                 // Apply language configurations to layout
                 applyLanguageLayout(session.language);
                 
-                // Add welcome dashboard if empty
-                if (session.messages.length === 1) {
+                const totalMessages = session.messages.length;
+                
+                if (totalMessages === 1) {
                     appendGreetingMessage();
+                    visibleStartIndex = 1;
                 } else {
-                    // Render history
-                    session.messages.forEach((msg, idx) => {
+                    visibleStartIndex = Math.max(1, totalMessages - visibleMessageCount);
+                    if (visibleStartIndex > 1) {
+                        loaderDiv.style.display = 'block';
+                    }
+                    
+                    for (let i = visibleStartIndex; i < totalMessages; i++) {
+                        const msg = session.messages[i];
                         if (msg.role !== 'system') {
-                            appendMessage(msg.role, msg.content, idx);
+                            appendMessage(msg.role, msg.content, i);
                         }
-                    });
+                    }
                 }
+                updatePromptNav(true);
+                scrollToBottom();
+                updateHeaderButtons();
             }
-            scrollToBottom();
-            updateHeaderButtons();
         }
 
         function deleteSession(e, id) {
@@ -1579,7 +1693,7 @@
             return html;
         }
 
-        function appendMessage(role, content, index, isStreaming = false) {
+        function appendMessage(role, content, index, isStreaming = false, prepend = false) {
             const wrapper = document.createElement('div');
             wrapper.className = `message-wrapper ${role}`;
             wrapper.dataset.index = index;
@@ -1768,6 +1882,62 @@
             }
         }
 
+        function extractRichHTML(originalWrapperIndex) {
+            const wrapper = document.querySelector(`.message-wrapper[data-index="${originalWrapperIndex}"]`);
+            if (!wrapper) return "";
+            const originalMessage = wrapper.querySelector('.message');
+            if (!originalMessage) return "";
+            
+            const clone = originalMessage.cloneNode(true);
+            clone.style.position = 'absolute';
+            clone.style.left = '-9999px';
+            wrapper.appendChild(clone);
+            
+            clone.querySelectorAll('.code-header').forEach(el => el.remove());
+            clone.querySelectorAll('.think-block').forEach(el => el.remove());
+            
+            function applyInline(el) {
+                const computed = window.getComputedStyle(el);
+                const stylesToCopy = {};
+                stylesToCopy.color = computed.color;
+                
+                if (computed.backgroundColor !== 'rgba(0, 0, 0, 0)' && computed.backgroundColor !== 'transparent') {
+                    stylesToCopy.backgroundColor = computed.backgroundColor;
+                }
+                
+                stylesToCopy.fontWeight = computed.fontWeight;
+                stylesToCopy.fontStyle = computed.fontStyle;
+                stylesToCopy.fontSize = computed.fontSize;
+                stylesToCopy.fontFamily = computed.fontFamily;
+                stylesToCopy.textAlign = computed.textAlign;
+                stylesToCopy.textDecoration = computed.textDecoration;
+                
+                if (el.tagName === 'PRE') {
+                    stylesToCopy.whiteSpace = 'pre-wrap';
+                    stylesToCopy.padding = '14px';
+                    stylesToCopy.borderRadius = '8px';
+                    stylesToCopy.backgroundColor = '#121824';
+                    stylesToCopy.color = '#e2e8f0';
+                }
+                
+                if (el.tagName === 'CODE') {
+                    stylesToCopy.fontFamily = "Consolas, 'Courier New', monospace";
+                }
+                
+                Array.from(el.children).forEach(child => applyInline(child));
+                Object.assign(el.style, stylesToCopy);
+            }
+            
+            applyInline(clone);
+            
+            const html = clone.innerHTML;
+            const dir = clone.classList.contains('ltr') ? 'ltr' : 'rtl';
+            
+            clone.remove();
+            
+            return `<div dir="${dir}" style="font-family: 'Vazirmatn', Tahoma, Arial, sans-serif; text-align: ${dir === 'ltr' ? 'left' : 'right'};">${html}</div>`;
+        }
+
         function copyMessageText(index) {
             const session = sessions.find(s => s.id === currentSessionId);
             if (!session) return;
@@ -1778,11 +1948,42 @@
             
             const trans = TRANSLATIONS[session.language] || TRANSLATIONS.fa;
             
-            navigator.clipboard.writeText(text).then(() => {
-                showToast(trans.toastCopied);
-            }).catch(err => {
-                console.error('Copy failed', err);
-            });
+            const styledHtml = extractRichHTML(index);
+            
+            try {
+                if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) {
+                    const plainBlob = new Blob([text], { type: 'text/plain' });
+                    // fallback to standard marked if styledHtml failed somehow
+                    const finalHtml = styledHtml || marked.parse(text);
+                    const htmlBlob = new Blob([finalHtml], { type: 'text/html' });
+                    const item = new ClipboardItem({
+                        'text/plain': plainBlob,
+                        'text/html': htmlBlob
+                    });
+                    
+                    navigator.clipboard.write([item]).then(() => {
+                        showToast(trans.toastCopied);
+                    }).catch(err => {
+                        console.error('ClipboardItem copy failed, falling back', err);
+                        fallbackCopyText(text, trans);
+                    });
+                } else {
+                    fallbackCopyText(text, trans);
+                }
+            } catch (e) {
+                console.error('Error with clipboard API', e);
+                fallbackCopyText(text, trans);
+            }
+        }
+
+        function fallbackCopyText(text, trans) {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(() => {
+                    showToast(trans.toastCopied);
+                }).catch(err => {
+                    console.error('Copy failed', err);
+                });
+            }
         }
 
         function regenerateFromIndex(index) {
@@ -2126,15 +2327,194 @@
             }
         }
 
-        function handleEnter(e) {
+        let promptHistory = JSON.parse(localStorage.getItem('minimax_prompt_history')) || [];
+        let promptHistoryIndex = -1;
+        let currentDraft = '';
+
+        function handleKeyDown(e) {
+            // Enter key to send
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 sendMessage();
+                return;
             }
+            
+            // Up/Down arrows for prompt history
+            if (e.key === 'ArrowUp') {
+                if (userInput.selectionStart === 0 && promptHistory.length > 0) {
+                    e.preventDefault();
+                    if (promptHistoryIndex === -1) {
+                        currentDraft = userInput.value;
+                    }
+                    if (promptHistoryIndex < promptHistory.length - 1) {
+                        promptHistoryIndex++;
+                        userInput.value = promptHistory[promptHistoryIndex];
+                        autoResize(userInput);
+                    }
+                }
+            } else if (e.key === 'ArrowDown') {
+                if (userInput.selectionEnd === userInput.value.length && promptHistoryIndex !== -1) {
+                    e.preventDefault();
+                    if (promptHistoryIndex > 0) {
+                        promptHistoryIndex--;
+                        userInput.value = promptHistory[promptHistoryIndex];
+                    } else {
+                        promptHistoryIndex = -1;
+                        userInput.value = currentDraft;
+                    }
+                    autoResize(userInput);
+                }
+            }
+        }
+
+        let currentNavUserMessageIndex = -1;
+
+        function updatePromptNav(reset = false) {
+            const nav = document.getElementById('promptNavFloating');
+            const textEl = document.getElementById('promptNavText');
+            if (!nav || !textEl) return;
+            
+            const session = sessions.find(s => s.id === currentSessionId);
+            if (!session) return;
+            
+            const userMessages = session.messages
+                .map((m, idx) => ({ ...m, realIndex: idx }))
+                .filter(m => m.role === 'user');
+                
+            if (userMessages.length === 0) {
+                nav.style.display = 'none';
+                return;
+            }
+            
+            if (reset) {
+                currentNavUserMessageIndex = userMessages.length - 1;
+            }
+            
+            if (currentNavUserMessageIndex < 0) {
+                nav.style.display = 'none';
+                return;
+            }
+            
+            const msg = userMessages[currentNavUserMessageIndex];
+            const prefix = session.language === 'en' ? 'Previous prompt: ' : 'پرامپت قبلی: ';
+            textEl.innerText = `${prefix}${msg.content}`;
+            nav.style.display = 'flex';
+        }
+
+        function goToPreviousPrompt() {
+            const session = sessions.find(s => s.id === currentSessionId);
+            if (!session) return;
+            
+            const userMessages = session.messages
+                .map((m, idx) => ({ ...m, realIndex: idx }))
+                .filter(m => m.role === 'user');
+                
+            if (currentNavUserMessageIndex < 0 || currentNavUserMessageIndex >= userMessages.length) return;
+            
+            const msg = userMessages[currentNavUserMessageIndex];
+            scrollToMessage(msg.realIndex);
+            
+            currentNavUserMessageIndex--;
+            updatePromptNav();
+        }
+
+        function scrollToMessage(idx) {
+            const session = sessions.find(s => s.id === currentSessionId);
+            if (!session) return;
+            
+            if (idx < visibleStartIndex) {
+                const oldScrollHeight = messagesBox.scrollHeight;
+                for (let i = visibleStartIndex - 1; i >= idx; i--) {
+                    const msg = session.messages[i];
+                    if (msg.role !== 'system') {
+                        appendMessage(msg.role, msg.content, i, false, true);
+                    }
+                }
+                visibleStartIndex = idx;
+                
+                const loaderDiv = document.getElementById('lazyLoader');
+                if (loaderDiv) {
+                    if (visibleStartIndex <= 1) loaderDiv.style.display = 'none';
+                }
+                const newScrollHeight = messagesBox.scrollHeight;
+                messagesBox.scrollTop = messagesBox.scrollTop + (newScrollHeight - oldScrollHeight);
+            }
+            
+            setTimeout(() => {
+                const targetWrapper = document.querySelector(`.message-wrapper[data-index="${idx}"]`);
+                if (targetWrapper) {
+                    targetWrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    const bubble = targetWrapper.querySelector('.message');
+                    if (bubble) {
+                        const originalBg = bubble.style.backgroundColor || '';
+                        bubble.style.transition = 'background-color 0.5s';
+                        bubble.style.backgroundColor = 'rgba(99, 102, 241, 0.4)';
+                        setTimeout(() => {
+                            bubble.style.backgroundColor = originalBg;
+                        }, 1200);
+                    }
+                }
+            }, 50);
+        }
+
+        let shouldAutoScroll = true;
+        messagesBox.addEventListener('scroll', () => {
+            const distanceToBottom = messagesBox.scrollHeight - messagesBox.scrollTop - messagesBox.clientHeight;
+            shouldAutoScroll = distanceToBottom <= 150;
+            
+            if (messagesBox.scrollTop < 50 && !isLazyLoading) {
+                loadOlderMessages();
+            }
+        });
+
+        function loadOlderMessages() {
+            const session = sessions.find(s => s.id === currentSessionId);
+            if (!session || visibleStartIndex <= 1) return;
+            
+            isLazyLoading = true;
+            
+            const loaderDiv = document.getElementById('lazyLoader');
+            if (loaderDiv) loaderDiv.innerText = 'در حال بارگذاری...';
+            
+            setTimeout(() => {
+                const oldScrollHeight = messagesBox.scrollHeight;
+                const newStartIndex = Math.max(1, visibleStartIndex - 20);
+                
+                // Prepend older messages
+                for (let i = visibleStartIndex - 1; i >= newStartIndex; i--) {
+                    const msg = session.messages[i];
+                    if (msg.role !== 'system') {
+                        appendMessage(msg.role, msg.content, i, false, true);
+                    }
+                }
+                
+                visibleStartIndex = newStartIndex;
+                
+                if (loaderDiv) {
+                    if (visibleStartIndex <= 1) {
+                        loaderDiv.style.display = 'none';
+                    } else {
+                        loaderDiv.innerText = 'پیام‌های بیشتر بارگذاری شد';
+                    }
+                }
+                
+                // Keep scroll position
+                const newScrollHeight = messagesBox.scrollHeight;
+                messagesBox.scrollTop = messagesBox.scrollTop + (newScrollHeight - oldScrollHeight);
+                
+                isLazyLoading = false;
+            }, 10);
         }
 
         function scrollToBottom() {
             messagesBox.scrollTop = messagesBox.scrollHeight;
+            shouldAutoScroll = true;
+        }
+
+        function scrollToBottomIfNearBottom() {
+            if (shouldAutoScroll) {
+                messagesBox.scrollTop = messagesBox.scrollHeight;
+            }
         }
 
         async function sendMessage(isRegenerateOrEdit = false) {
@@ -2151,13 +2531,20 @@
 
                 if (session.messages.length === 1) {
                     session.title = text.substring(0, 30) + (text.length > 30 ? '...' : '');
-                    saveSessions();
                 }
 
                 appendMessage('user', text, session.messages.length);
                 session.messages.push({ role: 'user', content: text });
                 saveSessions();
                 updateHeaderButtons();
+                
+                // Update global history
+                promptHistory = [text, ...promptHistory.filter(p => p !== text)].slice(0, 50);
+                localStorage.setItem('minimax_prompt_history', JSON.stringify(promptHistory));
+                promptHistoryIndex = -1;
+                currentDraft = '';
+                
+                updatePromptNav(true);
                 
                 userInput.value = '';
                 autoResize(userInput);
@@ -2231,7 +2618,7 @@
                                     const dirClass = getDirectionClass(fullResponse);
                                     aiMessageDiv.className = `message assistant ${dirClass}`;
                                     
-                                    scrollToBottom();
+                                    scrollToBottomIfNearBottom();
                                 }
                             } catch (e) {
                                 console.error('Error parsing stream:', e, trimmedLine);

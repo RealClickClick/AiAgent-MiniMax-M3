@@ -6,7 +6,7 @@ app = Flask(__name__)
 
 client = OpenAI(
     base_url='https://api.tokenrouter.com/v1',
-    api_key='sk-WiRzYpo1Od1DK9g8S50m0oLsrqnJlEv8ACyjUrfcns02Scdf',
+    api_key='sk-v8CyH1uBtumvtH8pt3YSMJn1mbyMjRrf7woxRAm6T47ltPRJ',
 )
 
 @app.route('/')
