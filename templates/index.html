@@ -2368,6 +2368,68 @@
         }
 
         let currentNavUserMessageIndex = -1;
+        let suppressPromptNavScrollSync = false;
+        let promptNavScrollTimer = null;
+
+        function getSessionUserMessages(session) {
+            if (!session) return [];
+            return session.messages
+                .map((m, idx) => ({ ...m, realIndex: idx }))
+                .filter(m => m.role === 'user');
+        }
+
+        function getPromptPreview(text, maxLength = 70) {
+            const normalized = (text || '').replace(/\s+/g, ' ').trim();
+            if (normalized.length <= maxLength) return normalized;
+            return normalized.substring(0, maxLength).trimEnd() + '...';
+        }
+
+        function getVisiblePromptRealIndex() {
+            const userWrappers = Array.from(messagesBox.querySelectorAll('.message-wrapper.user'));
+            if (userWrappers.length === 0) return -1;
+
+            const boxRect = messagesBox.getBoundingClientRect();
+            const referenceTop = boxRect.top + 24;
+            let candidate = userWrappers[0];
+
+            for (const wrapper of userWrappers) {
+                const rect = wrapper.getBoundingClientRect();
+                if (rect.top <= referenceTop) {
+                    candidate = wrapper;
+                } else {
+                    break;
+                }
+            }
+
+            return Number(candidate.dataset.index);
+        }
+
+        function syncPromptNavWithScroll() {
+            if (suppressPromptNavScrollSync) return;
+
+            const session = sessions.find(s => s.id === currentSessionId);
+            const userMessages = getSessionUserMessages(session);
+            if (!session || userMessages.length === 0) {
+                updatePromptNav();
+                return;
+            }
+
+            const distanceToBottom = messagesBox.scrollHeight - messagesBox.scrollTop - messagesBox.clientHeight;
+            if (distanceToBottom <= 150) {
+                currentNavUserMessageIndex = userMessages.length - 1;
+                updatePromptNav();
+                return;
+            }
+
+            const visiblePromptRealIndex = getVisiblePromptRealIndex();
+            if (visiblePromptRealIndex === -1) return;
+
+            const nextIndex = userMessages.findIndex(m => m.realIndex === visiblePromptRealIndex);
+            if (nextIndex !== -1) {
+                currentNavUserMessageIndex = nextIndex;
+                updatePromptNav();
+            }
+        }
 
         function updatePromptNav(reset = false) {
             const nav = document.getElementById('promptNavFloating');
@@ -2377,9 +2439,7 @@
             const session = sessions.find(s => s.id === currentSessionId);
             if (!session) return;
             
-            const userMessages = session.messages
-                .map((m, idx) => ({ ...m, realIndex: idx }))
-                .filter(m => m.role === 'user');
+            const userMessages = getSessionUserMessages(session);
                 
             if (userMessages.length === 0) {
                 nav.style.display = 'none';
@@ -2395,9 +2455,14 @@
                 return;
             }
             
+            if (currentNavUserMessageIndex >= userMessages.length) {
+                currentNavUserMessageIndex = userMessages.length - 1;
+            }
+
             const msg = userMessages[currentNavUserMessageIndex];
             const prefix = session.language === 'en' ? 'Previous prompt: ' : 'پرامپت قبلی: ';
-            textEl.innerText = `${prefix}${msg.content}`;
+            textEl.innerText = `${prefix}${getPromptPreview(msg.content)}`;
+            nav.title = getPromptPreview(msg.content, 120);
             nav.style.display = 'flex';
         }
 
@@ -2405,20 +2470,21 @@
             const session = sessions.find(s => s.id === currentSessionId);
             if (!session) return;
             
-            const userMessages = session.messages
-                .map((m, idx) => ({ ...m, realIndex: idx }))
-                .filter(m => m.role === 'user');
+            const userMessages = getSessionUserMessages(session);
                 
             if (currentNavUserMessageIndex < 0 || currentNavUserMessageIndex >= userMessages.length) return;
             
             const msg = userMessages[currentNavUserMessageIndex];
-            scrollToMessage(msg.realIndex);
+            suppressPromptNavScrollSync = true;
+            scrollToMessage(msg.realIndex, () => {
+                suppressPromptNavScrollSync = false;
+            });
             
             currentNavUserMessageIndex--;
             updatePromptNav();
         }
 
-        function scrollToMessage(idx) {
+        function scrollToMessage(idx, onDone) {
             const session = sessions.find(s => s.id === currentSessionId);
             if (!session) return;
             
@@ -2454,6 +2520,9 @@
                         }, 1200);
                     }
                 }
+                if (typeof onDone === 'function') {
+                    setTimeout(onDone, 350);
+                }
             }, 50);
         }
 
@@ -2465,6 +2534,9 @@
             if (messagesBox.scrollTop < 50 && !isLazyLoading) {
                 loadOlderMessages();
             }
+
+            clearTimeout(promptNavScrollTimer);
+            promptNavScrollTimer = setTimeout(syncPromptNavWithScroll, 80);
         });
 
         function loadOlderMessages() {
